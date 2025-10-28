@@ -23,6 +23,51 @@ function getClientId() {
   return cid;
 }
 
+// Comprehensive bot detection function
+function isBot() {
+  const ua = navigator.userAgent.toLowerCase();
+  
+  // Common bot patterns
+  const botPatterns = [
+    'facebookexternalhit',
+    'facebot',
+    'twitterbot',
+    'linkedinbot',
+    'whatsapp',
+    'telegrambot',
+    'discordbot',
+    'googlebot',
+    'bingbot',
+    'yandexbot',
+    'duckduckbot',
+    'baiduspider',
+    'slurp',
+    'exabot',
+    'msnbot',
+    'ahrefsbot'
+  ];
+  
+  // Check if user agent matches any bot pattern
+  const isBot = botPatterns.some(bot => ua.includes(bot));
+  
+  // Additional checks for common bot characteristics
+  const hasWebDriver = navigator.webdriver;
+  const hasChrome = window.chrome;
+  const languages = navigator.languages;
+  
+  // If it has webdriver (automated browser) or no languages detected, likely a bot
+  if (hasWebDriver || !languages || languages.length === 0) {
+    return true;
+  }
+  
+  // Check for headless browser patterns
+  if (ua.includes('headless') || ua.includes('phantomjs')) {
+    return true;
+  }
+  
+  return isBot;
+}
+
 const SITE_NAME = window.location.hostname.replace(/\./g, "-");
 const today = new Date().toISOString().slice(0, 10);
 const siteRef = ref(db, `sites/${SITE_NAME}/${today}`);
@@ -30,32 +75,63 @@ const siteRef = ref(db, `sites/${SITE_NAME}/${today}`);
 const clientId = getClientId();
 const referrer = document.referrer || "Direct";
 
-// Facebook bot detect
-const ua = navigator.userAgent.toLowerCase();
-const isFacebookBot = /facebookexternalhit|facebot/.test(ua);
+// Check if it's a bot
+const botDetected = isBot();
 
-// If it's a Facebook bot, don't count anything
-if (isFacebookBot) {
-  console.log("Facebook bot detected - not counting this visit");
-} else {
-  // Only count real human visitors
+console.log('User Agent:', navigator.userAgent);
+console.log('Is Bot:', botDetected);
+
+// ONLY count if it's NOT a bot
+if (!botDetected) {
   runTransaction(siteRef, (currentData) => {
     if (currentData === null) {
       return {
         total: 1,
         unique: 1,
-        visitors: { [clientId]: { lastRef: referrer, time: new Date().toISOString() } }
+        visitors: { 
+          [clientId]: { 
+            lastRef: referrer, 
+            time: new Date().toISOString(),
+            userAgent: navigator.userAgent 
+          } 
+        }
       };
     } else {
       currentData.total = (currentData.total || 0) + 1;
       
       // Only count as unique if this client hasn't visited today
-      if (!currentData.visitors[clientId]) {
+      if (!currentData.visitors || !currentData.visitors[clientId]) {
         currentData.unique = (currentData.unique || 0) + 1;
       }
 
       if (!currentData.visitors) currentData.visitors = {};
-      currentData.visitors[clientId] = { lastRef: referrer, time: new Date().toISOString() };
+      currentData.visitors[clientId] = { 
+        lastRef: referrer, 
+        time: new Date().toISOString(),
+        userAgent: navigator.userAgent 
+      };
+      return currentData;
+    }
+  }).then((result) => {
+    console.log('Visitor counted successfully');
+  }).catch((error) => {
+    console.error('Error counting visitor:', error);
+  });
+} else {
+  console.log('Bot detected - not counting this visit');
+  
+  // Optional: Track bots separately if you want to monitor them
+  const botRef = ref(db, `bots/${SITE_NAME}/${today}`);
+  runTransaction(botRef, (currentData) => {
+    if (currentData === null) {
+      return {
+        count: 1,
+        bots: { [clientId]: { userAgent: navigator.userAgent, time: new Date().toISOString() } }
+      };
+    } else {
+      currentData.count = (currentData.count || 0) + 1;
+      if (!currentData.bots) currentData.bots = {};
+      currentData.bots[clientId] = { userAgent: navigator.userAgent, time: new Date().toISOString() };
       return currentData;
     }
   });
