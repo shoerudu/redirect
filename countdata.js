@@ -34,23 +34,29 @@ const referrer = document.referrer || "Direct";
 const ua = navigator.userAgent.toLowerCase();
 const isFacebookBot = /facebookexternalhit|facebot/.test(ua);
 
-runTransaction(siteRef, (currentData) => {
-  if (currentData === null) {
-    return {
-      total: 1,
-      unique: isFacebookBot ? 0 : 1,
-      bots: isFacebookBot ? 1 : 0,
-      visitors: { [clientId]: { lastRef: referrer, bot: isFacebookBot, time: new Date().toISOString() } }
-    };
-  } else {
-    currentData.total = (currentData.total || 0) + 1;
-    if (isFacebookBot) currentData.bots = (currentData.bots || 0) + 1;
-    else if (!currentData.visitors[clientId]) {
-      currentData.unique = (currentData.unique || 0) + 1;
-    }
+// If it's a Facebook bot, don't count anything
+if (isFacebookBot) {
+  console.log("Facebook bot detected - not counting this visit");
+} else {
+  // Only count real human visitors
+  runTransaction(siteRef, (currentData) => {
+    if (currentData === null) {
+      return {
+        total: 1,
+        unique: 1,
+        visitors: { [clientId]: { lastRef: referrer, time: new Date().toISOString() } }
+      };
+    } else {
+      currentData.total = (currentData.total || 0) + 1;
+      
+      // Only count as unique if this client hasn't visited today
+      if (!currentData.visitors[clientId]) {
+        currentData.unique = (currentData.unique || 0) + 1;
+      }
 
-    if (!currentData.visitors) currentData.visitors = {};
-    currentData.visitors[clientId] = { lastRef: referrer, bot: isFacebookBot, time: new Date().toISOString() };
-    return currentData;
-  }
-});
+      if (!currentData.visitors) currentData.visitors = {};
+      currentData.visitors[clientId] = { lastRef: referrer, time: new Date().toISOString() };
+      return currentData;
+    }
+  });
+}
