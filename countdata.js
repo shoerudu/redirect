@@ -1,10 +1,5 @@
-// script.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
 import { getDatabase, ref, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-database.js";
-
-// =====================
-// Firebase Config
-// =====================
 const firebaseConfig = {
   apiKey: "AIzaSyCediRkFLFfRhnQWG9sCAEek_6-BMcNXXY",
   authDomain: "my-website-counter56.firebaseapp.com",
@@ -14,21 +9,12 @@ const firebaseConfig = {
   appId: "1:538008405213:web:eed758b2a5d8466f944734",
   databaseURL: "https://my-website-counter56-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-
-// =====================
-// Bot detection
-// =====================
 function isBot() {
   const ua = navigator.userAgent.toLowerCase();
   return /bot|crawl|slurp|spider|mediapartners|google|bing|yandex|baidu/.test(ua);
 }
-
-// =====================
-// Unique visitor ID
-// =====================
 function getClientId() {
   let cid = localStorage.getItem("visitor_id");
   if (!cid) {
@@ -37,10 +23,6 @@ function getClientId() {
   }
   return cid;
 }
-
-// =====================
-// Auto-detect site name
-// =====================
 const SITE_NAME = window.location.hostname.replace(/\./g, "-");
 const today = new Date().toISOString().slice(0, 10);
 const siteRef = ref(db, `sites/${SITE_NAME}/${today}`);
@@ -48,10 +30,6 @@ const siteRef = ref(db, `sites/${SITE_NAME}/${today}`);
 const clientId = getClientId();
 const referrer = document.referrer || "Direct";
 const bot = isBot();
-
-// =====================
-// Save to Firebase
-// =====================
 runTransaction(siteRef, (currentData) => {
   if (currentData === null) {
     return {
